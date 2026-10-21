@@ -76,11 +76,18 @@ export class HubSpot {
     );
   }
 
-  // Finns det redan en deal på bolaget (oavsett källa)?
-  companyHasDeal(companyId) {
+  // Finns det en deal på bolaget skapad de senaste 6 månaderna (oavsett källa)?
+  // Äldre deals räknas inte: ett nytt bokat möte är då en ny affärsmöjlighet.
+  companyHasDeal(companyId, now = Date.now()) {
+    const since = new Date(now - 182 * 24 * 3600 * 1000).toISOString();
     return this.searchOne(
       'deals',
-      [{ filters: [{ propertyName: 'associations.company', operator: 'EQ', value: String(companyId) }] }],
+      [{
+        filters: [
+          { propertyName: 'associations.company', operator: 'EQ', value: String(companyId) },
+          { propertyName: 'createdate', operator: 'GTE', value: since },
+        ],
+      }],
       ['dealname'],
     );
   }
