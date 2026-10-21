@@ -110,13 +110,23 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
     }
     stats.contactsUpdated++;
   } else {
-    const created = await hs.create(
-      'contacts',
-      Object.fromEntries(Object.entries({ ...base, ...adversusProps }).filter(([, v]) => v != null && v !== '')),
-      companyId ? [assoc(companyId, ASSOC.contactToCompany)] : [],
-    );
-    contactId = created.id;
-    stats.contactsCreated++;
+    try {
+      const created = await hs.create(
+        'contacts',
+        Object.fromEntries(Object.entries({ ...base, ...adversusProps }).filter(([, v]) => v != null && v !== '')),
+        companyId ? [assoc(companyId, ASSOC.contactToCompany)] : [],
+      );
+      contactId = created.id;
+      stats.contactsCreated++;
+    } catch (err) {
+      // HubSpots sökindex hänger ibland efter: kontakten finns redan med samma e-post.
+      const existing = err.message.match(/Existing ID: (\d+)/)?.[1];
+      if (!existing) throw err;
+      contactId = existing;
+      await hs.update('contacts', contactId, adversusProps);
+      if (companyId) await hs.associate('contacts', contactId, 'companies', companyId, ASSOC.contactToCompany);
+      stats.contactsUpdated++;
+    }
   }
   if (found && companyId) await hs.associate('contacts', contactId, 'companies', companyId, ASSOC.contactToCompany);
 
