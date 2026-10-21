@@ -1,6 +1,6 @@
 # Adversus till HubSpot
 
-Synkar eztablishers prospektering i Adversus till Indivds HubSpot, var 30:e minut på vardagar.
+Synkar eztablishers prospektering i Adversus till Indivds HubSpot, en gång i timmen på vardagar.
 
 ## Vad som synkas
 - **Bolag**: matchas på org.nr (`organization_number` eller `organisation_number`), annars skapas de. Fältet *Adversus: antal samtal (alla kontakter)* visar summan av samtal på bolaget.
