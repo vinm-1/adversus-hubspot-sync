@@ -8,6 +8,8 @@ import {
   fillBlanks,
   newCalls,
   orgnrVariants,
+  companyDomain,
+  nameVariants,
 } from './transform.js';
 
 const CONTACT_PROPS = [
@@ -30,7 +32,11 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
     companyId = companyCache.get(key);
   } else if (key) {
     const found = await hs.findCompany(
-      { orgnrVariants: orgnrVariants(p.company.orgnr), name: p.company.name },
+      {
+        orgnrVariants: orgnrVariants(p.company.orgnr),
+        names: nameVariants(p.company.name),
+        domain: companyDomain(p),
+      },
       COMPANY_PROPS,
     );
     const total = companyTotals.get(key) ?? 0;
@@ -39,7 +45,7 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
       await hs.update('companies', found.id, {
         ...fillBlanks(found.properties, {
           name: p.company.name,
-          domain: p.company.domain,
+          domain: companyDomain(p),
           ...orgnrProps(p.company.orgnr),
         }),
         adversus_contact_attempts: total,
@@ -50,7 +56,7 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
         Object.fromEntries(
           Object.entries({
             name: p.company.name,
-            domain: p.company.domain,
+            domain: companyDomain(p),
             ...orgnrProps(p.company.orgnr),
             adversus_contact_attempts: total,
           }).filter(([, v]) => v != null),

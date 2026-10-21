@@ -167,3 +167,19 @@ export function newCalls(storedAttempts, attempts) {
   if (storedAttempts == null || storedAttempts === '') return 0;
   return Math.max(0, attempts - Number(storedAttempts));
 }
+
+const FREEMAIL = /^(gmail|hotmail|outlook|live|yahoo|icloud|me|telia|spray|bredband)\./i;
+
+// Bolagets domän: URL-fältet i Adversus, annars domänen i kontaktens e-post (inte gratistjänster).
+export function companyDomain(p) {
+  if (p.company.domain) return p.company.domain.toLowerCase().replace(/^www\./, '');
+  const d = p.contact.email?.split('@')[1];
+  return d && !FREEMAIL.test(d) ? d : null;
+}
+
+// Namnvarianter för exakt sökning: original, utan parentes, och med ihopslagna mellanslag.
+export function nameVariants(name) {
+  if (!name) return [];
+  const base = name.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
+  return [...new Set([name, base, base.replace(/&/g, ' ').replace(/\s+/g, ' ')])];
+}

@@ -47,7 +47,7 @@ export class HubSpot {
   }
 
   // organisation_number är text, organization_number är ett nummerfält (bara siffror).
-  findCompany({ orgnrVariants, name }, properties) {
+  findCompany({ orgnrVariants, name, names = [], domain }, properties) {
     const groups = [];
     if (orgnrVariants.length) {
       groups.push({ filters: [{ propertyName: 'organisation_number', operator: 'IN', values: orgnrVariants }] });
@@ -55,7 +55,9 @@ export class HubSpot {
       if (digits) groups.push({ filters: [{ propertyName: 'organization_number', operator: 'EQ', value: digits }] });
     }
     // Namnet söks alltid som reserv: org.nr i Adversus är ibland fel eller saknas i HubSpot.
-    if (name) groups.push({ filters: [{ propertyName: 'name', operator: 'EQ', value: name }] });
+    if (domain) groups.push({ filters: [{ propertyName: 'domain', operator: 'EQ', value: domain }] });
+    const allNames = names.length ? names : name ? [name] : [];
+    if (allNames.length) groups.push({ filters: [{ propertyName: 'name', operator: 'IN', values: allNames }] });
     return groups.length ? this.searchOne('companies', groups, properties) : null;
   }
 

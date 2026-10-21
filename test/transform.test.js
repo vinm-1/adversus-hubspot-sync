@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeOrgnr, normalizePhone, normalizeEmail, splitName, skipReason,
-  parseLead, companyAttempts, fillBlanks, newCalls, clean,
+  parseLead, companyAttempts, fillBlanks, newCalls, clean, companyDomain, nameVariants,
 } from '../src/transform.js';
 
 // Påhittade leads med samma form som Adversus svar.
@@ -96,4 +96,16 @@ test('nya samtal räknas som skillnad, första synken loggar inga', () => {
   assert.equal(newCalls('3', 5), 2);
   assert.equal(newCalls('5', 5), 0);
   assert.equal(newCalls('7', 5), 0);
+});
+
+test('domän från URL eller kontaktens e-post, men inte gmail', () => {
+  const p = (url, email) => ({ company: { domain: url }, contact: { email } });
+  assert.equal(companyDomain(p(null, 'pete@bang-olufsen.com')), 'bang-olufsen.com');
+  assert.equal(companyDomain(p('www.Gant.se', 'x@gant.com')), 'gant.se');
+  assert.equal(companyDomain(p(null, 'x@gmail.com')), null);
+});
+
+test('namnvarianter utan parentes', () => {
+  assert.ok(nameVariants('DOZ Apotek (Admenta)').includes('DOZ Apotek'));
+  assert.ok(nameVariants('Bang & Olufsen').includes('Bang Olufsen'));
 });
