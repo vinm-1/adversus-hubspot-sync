@@ -153,8 +153,10 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
     stats.callsLogged++;
   }
 
-  // Bokat möte blir en deal (en gång per lead).
-  if (p.status === 'success' && !(await hs.findDeal(p.leadId))) {
+  // Bokat möte blir en deal, men bara om bolaget inte redan har en deal (då är mötet redan i pipen).
+  const hasDeal = async () =>
+    (await hs.findDeal(p.leadId)) || (companyId && !String(companyId).startsWith('dry-') && (await hs.companyHasDeal(companyId)));
+  if (p.status === 'success' && !(await hasDeal())) {
     const associations = [assoc(contactId, ASSOC.dealToContact)];
     if (companyId) associations.push(assoc(companyId, ASSOC.dealToCompany));
     await hs.create(

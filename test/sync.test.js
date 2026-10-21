@@ -4,13 +4,14 @@ import { syncLead } from '../src/sync.js';
 import { parseLead } from '../src/transform.js';
 
 // Fejkad HubSpot som minns vad som skapats.
-function fakeHs(existingContact = null) {
+function fakeHs(existingContact = null, existingDeal = false) {
   const made = [];
   return {
     made,
     findCompany: async () => null,
     findContact: async () => existingContact,
     findDeal: async () => null,
+    companyHasDeal: async () => (existingDeal ? { id: 'd1' } : null),
     create: async (object, properties) => { made.push({ object, properties }); return { id: `${object}-${made.length}` }; },
     update: async (object, id, properties) => { made.push({ object, id, update: properties }); },
     associate: async () => {},
@@ -69,4 +70,12 @@ test('samtalets text saknar lead-ID och har kontaktens namn', async () => {
   const call = hs.made.find((m) => m.object === 'calls').properties;
   assert.equal(call.hs_call_body, 'Samtal 5 av 5 till Linda Hammar.');
   assert.equal(call.hs_call_status, 'NO_ANSWER');
+});
+
+test('ingen ny deal om bolaget redan har en deal', async () => {
+  const hs = fakeHs(null, true);
+  const s = stats();
+  const p = rusta({ status: 'success', resultData: [{ label: 'Beskrivning', value: 'x' }] });
+  await syncLead(hs, p, new Map(), s, new Map([['556280-2115', 'co1']]));
+  assert.equal(s.dealsCreated, 0);
 });

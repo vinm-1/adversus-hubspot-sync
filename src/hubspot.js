@@ -76,6 +76,15 @@ export class HubSpot {
     );
   }
 
+  // Finns det redan en deal på bolaget (oavsett källa)?
+  companyHasDeal(companyId) {
+    return this.searchOne(
+      'deals',
+      [{ filters: [{ propertyName: 'associations.company', operator: 'EQ', value: String(companyId) }] }],
+      ['dealname'],
+    );
+  }
+
   create(object, properties, associations = []) {
     return this.write(`skapa ${object}`, 'POST', `/crm/v3/objects/${object}`, { properties, associations });
   }
