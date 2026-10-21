@@ -1,8 +1,9 @@
 name: Adversus till HubSpot
 
 on:
-  schedule:
-    - cron: '*/30 5-18 * * 1-5' # var 30:e minut, vardagar 07-20 svensk tid
+  # Schemat är pausat tills provkörningen är godkänd. Ta bort # på de två raderna för att slå på.
+  # schedule:
+  #   - cron: '*/30 5-18 * * 1-5' # var 30:e minut, vardagar (UTC)
   workflow_dispatch:
     inputs:
       dry_run:
