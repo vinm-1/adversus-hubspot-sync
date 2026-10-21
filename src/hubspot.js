@@ -54,9 +54,8 @@ export class HubSpot {
       const digits = orgnrVariants.find((v) => /^\d+$/.test(v));
       if (digits) groups.push({ filters: [{ propertyName: 'organization_number', operator: 'EQ', value: digits }] });
     }
-    if (!groups.length && name) {
-      groups.push({ filters: [{ propertyName: 'name', operator: 'EQ', value: name }] });
-    }
+    // Namnet söks alltid som reserv: org.nr i Adversus är ibland fel eller saknas i HubSpot.
+    if (name) groups.push({ filters: [{ propertyName: 'name', operator: 'EQ', value: name }] });
     return groups.length ? this.searchOne('companies', groups, properties) : null;
   }
 

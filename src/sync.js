@@ -170,7 +170,11 @@ export async function run({ dryRun = false, limit = Infinity, log = console.log 
   const totals = companyAttempts(kept);
 
   // LIMIT räknar bolag, så att en provkörning visar hela bolag med alla kontakter.
-  const keys = [...new Set(kept.map(companyKey))].slice(0, limit);
+  // Provkörningen tar bolag med riktiga kontakter (e-post) först, så att provet visar något.
+  const ordered = Number.isFinite(limit)
+    ? [...kept].sort((a, b) => Number(!!b.contact.email) - Number(!!a.contact.email))
+    : kept;
+  const keys = [...new Set(ordered.map(companyKey))].slice(0, limit);
   const selected = Number.isFinite(limit) ? kept.filter((p) => keys.includes(companyKey(p))) : kept;
 
   const hs = new HubSpot(undefined, { dryRun, log });
