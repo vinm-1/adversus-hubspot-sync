@@ -201,6 +201,7 @@ export async function run({ dryRun = false, limit = Infinity, log = console.log 
 if (import.meta.url === `file://${process.argv[1]}`) {
   await run({
     dryRun: process.env.DRY_RUN === 'true',
-    limit: process.env.LIMIT ? Number(process.env.LIMIT) : Infinity,
+    // Tomt eller 0 betyder alla bolag.
+    limit: Number(process.env.LIMIT) > 0 ? Number(process.env.LIMIT) : Infinity,
   });
 }

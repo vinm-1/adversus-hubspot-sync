@@ -10,7 +10,7 @@ on:
         type: boolean
         default: true
       limit:
-        description: 'Antal bolag (tomt = alla)'
+        description: 'Antal bolag (0 = alla)'
         default: '5'
       setup:
         description: 'Skapa Adversus-fälten i HubSpot först'
