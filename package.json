@@ -1,0 +1,11 @@
+{
+  "name": "adversus-hubspot-sync",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "setup": "node src/setup-properties.js",
+    "sync": "node src/sync.js"
+  }
+}

@@ -1,0 +1,43 @@
+name: Adversus till HubSpot
+
+on:
+  schedule:
+    - cron: '*/30 5-18 * * 1-5' # var 30:e minut, vardagar 07-20 svensk tid
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Torrkörning (skriver inget till HubSpot)'
+        type: boolean
+        default: true
+      limit:
+        description: 'Antal bolag (tomt = alla)'
+        default: '5'
+      setup:
+        description: 'Skapa Adversus-fälten i HubSpot först'
+        type: boolean
+        default: false
+
+concurrency: adversus-sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ADVERSUS_USER: ${{ secrets.ADVERSUS_USER }}
+      ADVERSUS_PASSWORD: ${{ secrets.ADVERSUS_PASSWORD }}
+      HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+      HUBSPOT_CALL_OWNER_ID: ${{ vars.HUBSPOT_CALL_OWNER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - if: ${{ inputs.setup }}
+        run: npm run setup
+      - run: npm run sync
+        env:
+          # Schemalagda körningar är alltid skarpa och fullständiga.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          LIMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.limit || '' }}

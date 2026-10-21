@@ -1,0 +1,98 @@
+import { request } from './http.js';
+
+const BASE = 'https://api.hubapi.com';
+
+// HubSpot-definierade associationstyper (v4).
+export const ASSOC = {
+  contactToCompany: 1,
+  callToContact: 194,
+  callToCompany: 182,
+  dealToContact: 3,
+  dealToCompany: 5,
+};
+
+export class HubSpot {
+  constructor(token = process.env.HUBSPOT_TOKEN, { dryRun = false, log = console.log } = {}) {
+    if (!token) throw new Error('HUBSPOT_TOKEN måste vara satt');
+    this.token = token;
+    this.dryRun = dryRun;
+    this.log = log;
+    this.fakeId = 0;
+  }
+
+  call(method, path, body) {
+    return request(`${BASE}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${this.token}`, 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  // Läsningar körs även i torrkörning, skrivningar loggas bara.
+  async write(desc, method, path, body) {
+    if (this.dryRun) {
+      this.log(`[TORRKÖRNING] ${desc}`, JSON.stringify(body?.properties ?? body ?? {}));
+      return { id: `dry-${++this.fakeId}` };
+    }
+    return this.call(method, path, body);
+  }
+
+  async searchOne(object, filterGroups, properties) {
+    const res = await this.call('POST', `/crm/v3/objects/${object}/search`, {
+      filterGroups,
+      properties,
+      limit: 1,
+    });
+    return res.results?.[0] ?? null;
+  }
+
+  findCompany({ orgnrVariants, name }, properties) {
+    const groups = [];
+    if (orgnrVariants.length) {
+      for (const prop of ['organization_number', 'organisation_number']) {
+        groups.push({ filters: [{ propertyName: prop, operator: 'IN', values: orgnrVariants }] });
+      }
+    }
+    if (!groups.length && name) {
+      groups.push({ filters: [{ propertyName: 'name', operator: 'EQ', value: name }] });
+    }
+    return groups.length ? this.searchOne('companies', groups, properties) : null;
+  }
+
+  findContact({ leadId, email, phone }, properties) {
+    const groups = [{ filters: [{ propertyName: 'adversus_lead_id', operator: 'EQ', value: leadId }] }];
+    if (email) groups.push({ filters: [{ propertyName: 'email', operator: 'EQ', value: email }] });
+    if (phone) groups.push({ filters: [{ propertyName: 'mobilephone', operator: 'EQ', value: phone }] });
+    return this.searchOne('contacts', groups, properties);
+  }
+
+  findDeal(leadId) {
+    return this.searchOne(
+      'deals',
+      [{ filters: [{ propertyName: 'adversus_lead_id', operator: 'EQ', value: leadId }] }],
+      ['dealname'],
+    );
+  }
+
+  create(object, properties, associations = []) {
+    return this.write(`skapa ${object}`, 'POST', `/crm/v3/objects/${object}`, { properties, associations });
+  }
+
+  update(object, id, properties) {
+    if (!Object.keys(properties).length) return null;
+    return this.write(`uppdatera ${object} ${id}`, 'PATCH', `/crm/v3/objects/${object}/${id}`, { properties });
+  }
+
+  associate(from, fromId, to, toId, typeId) {
+    return this.write(
+      `koppla ${from} ${fromId} -> ${to} ${toId}`,
+      'PUT',
+      `/crm/v4/objects/${from}/${fromId}/associations/${to}/${toId}`,
+      [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: typeId }],
+    );
+  }
+}
+
+export function assoc(id, typeId) {
+  return { to: { id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: typeId }] };
+}

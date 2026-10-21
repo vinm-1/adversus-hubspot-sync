@@ -1,0 +1,185 @@
+import { fetchLeads } from './adversus.js';
+import { HubSpot, ASSOC, assoc } from './hubspot.js';
+import {
+  parseLead,
+  skipReason,
+  companyKey,
+  companyAttempts,
+  fillBlanks,
+  newCalls,
+  orgnrVariants,
+} from './transform.js';
+
+const CONTACT_PROPS = [
+  'firstname', 'lastname', 'email', 'phone', 'mobilephone', 'jobtitle', 'hs_linkedin_url',
+  'adversus_lead_id', 'adversus_contact_attempts',
+];
+const COMPANY_PROPS = ['name', 'domain', 'organization_number', 'organisation_number'];
+
+export async function syncLead(hs, p, companyTotals, stats, companyCache) {
+  // Företag
+  let companyId = null;
+  const key = companyKey(p);
+  if (key && companyCache.has(key)) {
+    companyId = companyCache.get(key);
+  } else if (key) {
+    const found = await hs.findCompany(
+      { orgnrVariants: orgnrVariants(p.company.orgnr), name: p.company.name },
+      COMPANY_PROPS,
+    );
+    const total = companyTotals.get(key) ?? 0;
+    if (found) {
+      companyId = found.id;
+      await hs.update('companies', found.id, {
+        ...fillBlanks(found.properties, {
+          name: p.company.name,
+          domain: p.company.domain,
+          organization_number: p.company.orgnr,
+        }),
+        adversus_contact_attempts: total,
+      });
+    } else if (p.company.name) {
+      const created = await hs.create('companies', {
+        name: p.company.name,
+        domain: p.company.domain,
+        organization_number: p.company.orgnr,
+        adversus_contact_attempts: total,
+      });
+      companyId = created.id;
+      stats.companiesCreated++;
+    }
+    companyCache.set(key, companyId);
+  }
+
+  // Kontakt
+  const c = p.contact;
+  if (!c.email && !c.phone && !c.mobilephone && !c.lastname && !c.firstname) {
+    stats.noContact++;
+    return;
+  }
+  const adversusProps = {
+    adversus_lead_id: p.leadId,
+    adversus_contact_attempts: p.attempts,
+    adversus_status: p.statusLabel,
+    adversus_last_result: p.result ?? '',
+    adversus_last_contacted: p.lastContacted,
+    adversus_next_contact: p.nextContact ?? '',
+  };
+  const base = {
+    firstname: c.firstname,
+    lastname: c.lastname,
+    email: c.email,
+    phone: c.phone,
+    mobilephone: c.mobilephone,
+    jobtitle: c.jobtitle,
+    hs_linkedin_url: c.linkedin,
+  };
+  const found = await hs.findContact(
+    { leadId: p.leadId, email: c.email, phone: c.mobilephone ?? c.phone },
+    CONTACT_PROPS,
+  );
+  let contactId;
+  let stored = null;
+  if (found) {
+    contactId = found.id;
+    // Samma person kan finnas som flera leads. Räkna bara samtal mot leadet som äger kontakten.
+    const sameLead = !found.properties.adversus_lead_id || found.properties.adversus_lead_id === p.leadId;
+    stored = sameLead ? found.properties.adversus_contact_attempts : null;
+    if (sameLead) {
+      await hs.update('contacts', contactId, { ...fillBlanks(found.properties, base), ...adversusProps });
+    } else {
+      await hs.update('contacts', contactId, fillBlanks(found.properties, base));
+    }
+    stats.contactsUpdated++;
+  } else {
+    const created = await hs.create(
+      'contacts',
+      Object.fromEntries(Object.entries({ ...base, ...adversusProps }).filter(([, v]) => v != null && v !== '')),
+      companyId ? [assoc(companyId, ASSOC.contactToCompany)] : [],
+    );
+    contactId = created.id;
+    stats.contactsCreated++;
+  }
+  if (found && companyId) await hs.associate('contacts', contactId, 'companies', companyId, ASSOC.contactToCompany);
+
+  // Samtal: ett Call per nytt försök sedan förra körningen.
+  const calls = newCalls(stored, p.attempts);
+  for (let i = 0; i < calls; i++) {
+    const associations = [assoc(contactId, ASSOC.callToContact)];
+    if (companyId) associations.push(assoc(companyId, ASSOC.callToCompany));
+    await hs.create(
+      'calls',
+      {
+        hs_timestamp: p.lastContacted ?? new Date().toISOString(),
+        hs_call_title: `Samtal via eztablisher (Adversus): ${p.statusLabel}`,
+        hs_call_body: [
+          `Försök ${Number(stored) + i + 1} av ${p.attempts} på lead ${p.leadId}.`,
+          p.result,
+        ].filter(Boolean).join('\n'),
+        hs_call_direction: 'OUTBOUND',
+        hs_call_status: 'COMPLETED',
+        ...(process.env.HUBSPOT_CALL_OWNER_ID ? { hubspot_owner_id: process.env.HUBSPOT_CALL_OWNER_ID } : {}),
+      },
+      associations,
+    );
+    stats.callsLogged++;
+  }
+
+  // Bokat möte blir en deal (en gång per lead).
+  if (p.status === 'success' && !(await hs.findDeal(p.leadId))) {
+    const associations = [assoc(contactId, ASSOC.dealToContact)];
+    if (companyId) associations.push(assoc(companyId, ASSOC.dealToCompany));
+    await hs.create(
+      'deals',
+      {
+        dealname: `${p.company.name ?? 'Okänt bolag'} – möte bokat av eztablisher`,
+        pipeline: process.env.HUBSPOT_PIPELINE ?? 'default',
+        dealstage: process.env.HUBSPOT_DEAL_STAGE ?? 'appointmentscheduled',
+        description: p.meetingNote ?? '',
+        adversus_lead_id: p.leadId,
+      },
+      associations,
+    );
+    stats.dealsCreated++;
+  }
+}
+
+export async function run({ dryRun = false, limit = Infinity, log = console.log } = {}) {
+  const raw = await fetchLeads();
+  const stats = {
+    leads: raw.length, skipped: {}, companiesCreated: 0, contactsCreated: 0,
+    contactsUpdated: 0, callsLogged: 0, dealsCreated: 0, noContact: 0, errors: 0,
+  };
+  const kept = [];
+  for (const lead of raw) {
+    const why = skipReason(lead);
+    if (why) stats.skipped[why] = (stats.skipped[why] ?? 0) + 1;
+    else kept.push(parseLead(lead));
+  }
+  const totals = companyAttempts(kept);
+
+  // LIMIT räknar bolag, så att en provkörning visar hela bolag med alla kontakter.
+  const keys = [...new Set(kept.map(companyKey))].slice(0, limit);
+  const selected = Number.isFinite(limit) ? kept.filter((p) => keys.includes(companyKey(p))) : kept;
+
+  const hs = new HubSpot(undefined, { dryRun, log });
+  const cache = new Map();
+  for (const p of selected) {
+    try {
+      await syncLead(hs, p, totals, stats, cache);
+    } catch (err) {
+      stats.errors++;
+      log(`FEL på lead ${p.leadId} (${p.company.name}): ${err.message}`);
+    }
+  }
+  log('Klart:', JSON.stringify(stats, null, 2));
+  if (stats.errors) process.exitCode = 1;
+  return stats;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  await run({
+    dryRun: process.env.DRY_RUN === 'true',
+    limit: process.env.LIMIT ? Number(process.env.LIMIT) : Infinity,
+  });
+}
