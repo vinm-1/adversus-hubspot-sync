@@ -134,6 +134,7 @@ export function parseLead(lead) {
     nextContact: lead.nextContactTime ?? null,
     result: resultSummary(lead),
     meetingNote: clean(r[FIELD.description]),
+    consultantEmail: normalizeEmail(r['Email sent to consultant']),
     company: {
       name: clean(m[FIELD.company]),
       orgnr: normalizeOrgnr(m[FIELD.orgnr]),

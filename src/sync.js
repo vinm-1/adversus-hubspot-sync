@@ -25,6 +25,11 @@ const orgnrProps = (orgnr) => ({
   organization_number: orgnr ? orgnr.replace('-', '') : null,
 });
 
+async function ownerProp(hs, email) {
+  const id = (await hs.ownerIdByEmail?.(email)) ?? process.env.HUBSPOT_DEAL_OWNER_ID;
+  return id ? { hubspot_owner_id: String(id) } : {};
+}
+
 export async function syncLead(hs, p, companyTotals, stats, companyCache) {
   // Företag
   let companyId = null;
@@ -167,6 +172,7 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
         dealstage: process.env.HUBSPOT_DEAL_STAGE ?? 'appointmentscheduled',
         description: p.meetingNote ?? '',
         adversus_lead_id: p.leadId,
+        ...(await ownerProp(hs, p.consultantEmail)),
       },
       associations,
     );

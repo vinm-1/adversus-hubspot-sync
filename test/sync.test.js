@@ -11,6 +11,7 @@ function fakeHs(existingContact = null, existingDeal = false) {
     findCompany: async () => null,
     findContact: async () => existingContact,
     findDeal: async () => null,
+    ownerIdByEmail: async (e) => (e === 'robin@indivd.com' ? '78560277' : null),
     companyHasDeal: async () => (existingDeal ? { id: 'd1' } : null),
     create: async (object, properties) => { made.push({ object, properties }); return { id: `${object}-${made.length}` }; },
     update: async (object, id, properties) => { made.push({ object, id, update: properties }); },
@@ -78,4 +79,11 @@ test('ingen ny deal om bolaget redan har en deal', async () => {
   const p = rusta({ status: 'success', resultData: [{ label: 'Beskrivning', value: 'x' }] });
   await syncLead(hs, p, new Map(), s, new Map([['556280-2115', 'co1']]));
   assert.equal(s.dealsCreated, 0);
+});
+
+test('dealen får ägaren som eztablisher skickade mötet till', async () => {
+  const hs = fakeHs();
+  const p = rusta({ status: 'success', resultData: [{ label: 'Email sent to consultant', value: 'robin@indivd.com' }] });
+  await syncLead(hs, p, new Map(), stats(), new Map());
+  assert.equal(hs.made.find((m) => m.object === 'deals').properties.hubspot_owner_id, '78560277');
 });

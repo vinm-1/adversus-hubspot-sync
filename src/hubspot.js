@@ -92,6 +92,17 @@ export class HubSpot {
     );
   }
 
+  // HubSpot-ägare utifrån e-post, t.ex. säljaren eztablisher skickade mötet till.
+  async ownerIdByEmail(email) {
+    if (!email) return null;
+    this.owners ??= new Map();
+    if (!this.owners.has(email)) {
+      const res = await this.call('GET', `/crm/v3/owners?email=${encodeURIComponent(email)}&limit=1`);
+      this.owners.set(email, res.results?.[0]?.id ?? null);
+    }
+    return this.owners.get(email);
+  }
+
   create(object, properties, associations = []) {
     return this.write(`skapa ${object}`, 'POST', `/crm/v3/objects/${object}`, { properties, associations });
   }
