@@ -97,8 +97,12 @@ export class HubSpot {
     if (!email) return null;
     this.owners ??= new Map();
     if (!this.owners.has(email)) {
-      const res = await this.call('GET', `/crm/v3/owners?email=${encodeURIComponent(email)}&limit=1`);
-      this.owners.set(email, res.results?.[0]?.id ?? null);
+      // Kräver scopet crm.objects.owners.read. Saknas det skapas dealen utan ägare i stället för att fallera.
+      const res = await this.call('GET', `/crm/v3/owners?email=${encodeURIComponent(email)}&limit=1`).catch((e) => {
+        this.log(`Kunde inte slå upp ägare för ${email}: ${e.message.slice(0, 120)}`);
+        return null;
+      });
+      this.owners.set(email, res?.results?.[0]?.id ?? null);
     }
     return this.owners.get(email);
   }

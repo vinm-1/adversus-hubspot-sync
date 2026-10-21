@@ -13,7 +13,7 @@ Synkar eztablishers prospektering i Adversus till Indivds HubSpot, en gång i ti
 1. **Settings → Secrets and variables → Actions → New repository secret**:
    - `ADVERSUS_USER`: API-användaren från Adversus
    - `ADVERSUS_PASSWORD`: lösenordet
-   - `HUBSPOT_TOKEN`: token från en HubSpot Private App med scopes `crm.objects.contacts.read/write`, `crm.objects.companies.read/write`, `crm.objects.deals.read/write`, `crm.schemas.contacts.write`, `crm.schemas.companies.write`, `crm.schemas.deals.write`
+   - `HUBSPOT_TOKEN`: token från en HubSpot Private App med scopes `crm.objects.contacts.read/write`, `crm.objects.companies.read/write`, `crm.objects.deals.read/write`, `crm.schemas.contacts.write`, `crm.schemas.companies.write`, `crm.schemas.deals.write`, `crm.objects.owners.read`
    - Valfri *variable* `HUBSPOT_CALL_OWNER_ID`: HubSpot-ägaren som samtalen ska stå på
 2. **Actions → Adversus till HubSpot → Run workflow**: kryssa i *setup* och *dry run*, sätt limit 5. Läs loggen.
 3. Kör igen utan *dry run* med limit 5. Granska de 5 bolagen i HubSpot.
