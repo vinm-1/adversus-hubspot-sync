@@ -10,6 +10,7 @@ import {
   orgnrVariants,
   companyDomain,
   nameVariants,
+  callStatus,
 } from './transform.js';
 
 const CONTACT_PROPS = [
@@ -130,11 +131,11 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
         hs_timestamp: p.lastContacted ?? new Date().toISOString(),
         hs_call_title: `Samtal via eztablisher (Adversus): ${p.statusLabel}`,
         hs_call_body: [
-          `Försök ${Number(stored) + i + 1} av ${p.attempts} på lead ${p.leadId}.`,
+          `Samtal ${Number(stored) + i + 1} av ${p.attempts} till ${[p.contact.firstname, p.contact.lastname].filter(Boolean).join(' ') || 'kontakten'}.`,
           p.result,
         ].filter(Boolean).join('\n'),
         hs_call_direction: 'OUTBOUND',
-        hs_call_status: 'COMPLETED',
+        hs_call_status: callStatus(p.status),
         ...(process.env.HUBSPOT_CALL_OWNER_ID ? { hubspot_owner_id: process.env.HUBSPOT_CALL_OWNER_ID } : {}),
       },
       associations,

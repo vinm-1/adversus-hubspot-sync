@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeOrgnr, normalizePhone, normalizeEmail, splitName, skipReason,
-  parseLead, companyAttempts, fillBlanks, newCalls, clean, companyDomain, nameVariants,
+  parseLead, companyAttempts, fillBlanks, newCalls, clean, companyDomain, nameVariants, resultSummary, callStatus,
 } from '../src/transform.js';
 
 // Påhittade leads med samma form som Adversus svar.
@@ -75,7 +75,7 @@ test('parseLead plockar ut bolag, kontakt och utfall', () => {
   assert.equal(p.contact.email, 'linda@rusta.com');
   assert.equal(p.contact.mobilephone, '+46702904255');
   assert.equal(p.meetingNote, 'Bra samtal');
-  assert.match(p.result, /Nöjd/);
+  assert.equal(p.result, 'Nöjd');
 });
 
 test('samtal summeras per bolag via org.nr i båda formaten', () => {
@@ -108,4 +108,21 @@ test('domän från URL eller kontaktens e-post, men inte gmail', () => {
 test('namnvarianter utan parentes', () => {
   assert.ok(nameVariants('DOZ Apotek (Admenta)').includes('DOZ Apotek'));
   assert.ok(nameVariants('Bang & Olufsen').includes('Bang Olufsen'));
+});
+
+test('utfallet blir läsbar svenska', () => {
+  const l = lead({}, {}, {
+    'Anledning - Inte intresserad': 'Nöjd med befintlig lösning',
+    'Kommentar - Inte intresserad': 'mäter redan',
+    'Lämplig återkoppling': '2026-07-23T16:30:00+02:00',
+  });
+  assert.equal(resultSummary(l), 'Nöjd med befintlig lösning. Kommentar: mäter redan. Återkoppling: 23 juli 2026');
+  assert.equal(resultSummary(lead()), null);
+});
+
+test('samtalsstatus: obesvarat, misslyckat eller genomfört', () => {
+  assert.equal(callStatus('automaticRedial'), 'NO_ANSWER');
+  assert.equal(callStatus('invalid'), 'FAILED');
+  assert.equal(callStatus('success'), 'COMPLETED');
+  assert.equal(callStatus('privateRedial'), 'COMPLETED');
 });

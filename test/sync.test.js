@@ -62,3 +62,11 @@ test('bokat möte blir en deal med mötesanteckningen', async () => {
   assert.equal(deal.properties.description, 'Vill se demo');
   assert.equal(deal.properties.adversus_lead_id, '7');
 });
+
+test('samtalets text saknar lead-ID och har kontaktens namn', async () => {
+  const hs = fakeHs({ id: 'c1', properties: { adversus_lead_id: '7', adversus_contact_attempts: '4' } });
+  await syncLead(hs, rusta(), new Map(), stats(), new Map([['556280-2115', 'co1']]));
+  const call = hs.made.find((m) => m.object === 'calls').properties;
+  assert.equal(call.hs_call_body, 'Samtal 5 av 5 till Linda Hammar.');
+  assert.equal(call.hs_call_status, 'NO_ANSWER');
+});

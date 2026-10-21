@@ -98,12 +98,27 @@ const STATUS_LABEL = {
   privateRedial: 'Ring igen (bokad återringning)',
 };
 
+const SV_DATE = new Intl.DateTimeFormat('sv-SE', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Stockholm' });
+
+// Läsbart utfall, t.ex. "Nöjd med befintlig lösning. Kommentar: mäter redan. Återkoppling: 23 juli 2026".
 export function resultSummary(lead) {
   const r = fieldMap(lead.resultData);
-  const parts = Object.entries(r)
-    .filter(([k, v]) => /^(Anledning|Kommentar)/.test(k) && clean(v))
-    .map(([k, v]) => `${k}: ${v}`);
-  return parts.join(' | ') || null;
+  const pick = (prefix) => Object.entries(r).find(([k, v]) => k.startsWith(prefix) && clean(v))?.[1];
+  const parts = [];
+  const reason = pick('Anledning');
+  const comment = pick('Kommentar');
+  const callback = clean(r['Lämplig återkoppling']);
+  if (reason) parts.push(clean(reason));
+  if (comment && comment !== reason) parts.push(`Kommentar: ${clean(comment)}`);
+  if (callback && !Number.isNaN(Date.parse(callback))) parts.push(`Återkoppling: ${SV_DATE.format(new Date(callback))}`);
+  return parts.join('. ') || null;
+}
+
+// HubSpots samtalsstatus utifrån leadets status i Adversus.
+export function callStatus(status) {
+  if (status === 'automaticRedial') return 'NO_ANSWER';
+  if (status === 'invalid') return 'FAILED';
+  return 'COMPLETED';
 }
 
 export function parseLead(lead) {
