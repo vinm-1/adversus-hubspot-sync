@@ -16,6 +16,12 @@ const CONTACT_PROPS = [
 ];
 const COMPANY_PROPS = ['name', 'domain', 'organization_number', 'organisation_number'];
 
+// organization_number är ett nummerfält i HubSpot och tar bara siffror.
+const orgnrProps = (orgnr) => ({
+  organisation_number: orgnr,
+  organization_number: orgnr ? orgnr.replace('-', '') : null,
+});
+
 export async function syncLead(hs, p, companyTotals, stats, companyCache) {
   // Företag
   let companyId = null;
@@ -34,17 +40,22 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
         ...fillBlanks(found.properties, {
           name: p.company.name,
           domain: p.company.domain,
-          organization_number: p.company.orgnr,
+          ...orgnrProps(p.company.orgnr),
         }),
         adversus_contact_attempts: total,
       });
     } else if (p.company.name) {
-      const created = await hs.create('companies', {
-        name: p.company.name,
-        domain: p.company.domain,
-        organization_number: p.company.orgnr,
-        adversus_contact_attempts: total,
-      });
+      const created = await hs.create(
+        'companies',
+        Object.fromEntries(
+          Object.entries({
+            name: p.company.name,
+            domain: p.company.domain,
+            ...orgnrProps(p.company.orgnr),
+            adversus_contact_attempts: total,
+          }).filter(([, v]) => v != null),
+        ),
+      );
       companyId = created.id;
       stats.companiesCreated++;
     }

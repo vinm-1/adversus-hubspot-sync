@@ -46,12 +46,13 @@ export class HubSpot {
     return res.results?.[0] ?? null;
   }
 
+  // organisation_number är text, organization_number är ett nummerfält (bara siffror).
   findCompany({ orgnrVariants, name }, properties) {
     const groups = [];
     if (orgnrVariants.length) {
-      for (const prop of ['organization_number', 'organisation_number']) {
-        groups.push({ filters: [{ propertyName: prop, operator: 'IN', values: orgnrVariants }] });
-      }
+      groups.push({ filters: [{ propertyName: 'organisation_number', operator: 'IN', values: orgnrVariants }] });
+      const digits = orgnrVariants.find((v) => /^\d+$/.test(v));
+      if (digits) groups.push({ filters: [{ propertyName: 'organization_number', operator: 'EQ', value: digits }] });
     }
     if (!groups.length && name) {
       groups.push({ filters: [{ propertyName: 'name', operator: 'EQ', value: name }] });
