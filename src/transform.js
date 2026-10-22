@@ -199,3 +199,38 @@ export function nameVariants(name) {
   const base = name.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim();
   return [...new Set([name, base, base.replace(/&/g, ' ').replace(/\s+/g, ' ')])];
 }
+
+// HubSpots standardval för "Call outcome" (hs_call_disposition).
+const OUTCOME = {
+  connected: 'f240bbac-87c9-4f6e-bf70-924b57d47db7',
+  meetingBooked: '2e7360c1-6b71-40e9-ab2b-30ae98a4678c',
+  noAnswer: '73a0d17f-1163-4015-bdd5-ec830791da20',
+  wrongNumber: '17b47fee-58de-441e-a44c-c6300d46f273',
+};
+
+export function callOutcome(p) {
+  if (p.status === 'success') return OUTCOME.meetingBooked;
+  if (p.status === 'automaticRedial') return OUTCOME.noAnswer;
+  if (p.status === 'invalid') return /nummer/i.test(p.result ?? '') ? OUTCOME.wrongNumber : OUTCOME.noAnswer;
+  return OUTCOME.connected; // privateRedial (bokad återringning), notInterested, unqualified
+}
+
+const esc = (v) => String(v).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+const SV_DATETIME = new Intl.DateTimeFormat('sv-SE', {
+  day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Stockholm',
+});
+
+// Samtalets text i HubSpot: alltid med utfall, bolag, titel och vad som händer härnäst.
+export function callBody(p, n, now = Date.now()) {
+  const name = [p.contact.firstname, p.contact.lastname].filter(Boolean).join(' ') || 'kontakten';
+  const rows = [
+    `<b>${esc(p.statusLabel)}</b>${p.result ? `: ${esc(p.result)}` : ''}`,
+    `Samtal ${n} av ${p.attempts} till ${esc(name)}${p.contact.jobtitle ? `, ${esc(p.contact.jobtitle)}` : ''}${p.company.name ? ` på ${esc(p.company.name)}` : ''}.`,
+  ];
+  const next = p.nextContact ? Date.parse(p.nextContact) : NaN;
+  if (p.status === 'privateRedial' && next > now) rows.push(`Bokad återringning: ${SV_DATETIME.format(new Date(next))}`);
+  else if (p.status === 'automaticRedial') rows.push('Inget svar. eztablisher ringer igen.');
+  if (p.status === 'success' && p.meetingNote) rows.push(`<i>Mötesanteckning:</i> ${esc(p.meetingNote)}`);
+  rows.push('<i>Ringt av eztablisher via Adversus</i>');
+  return rows.map((r) => `<p>${r}</p>`).join('');
+}

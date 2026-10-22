@@ -69,7 +69,11 @@ test('samtalets text saknar lead-ID och har kontaktens namn', async () => {
   const hs = fakeHs({ id: 'c1', properties: { adversus_lead_id: '7', adversus_contact_attempts: '4' } });
   await syncLead(hs, rusta(), new Map(), stats(), new Map([['556280-2115', 'co1']]));
   const call = hs.made.find((m) => m.object === 'calls').properties;
-  assert.equal(call.hs_call_body, 'Samtal 5 av 5 till Linda Hammar.');
+  assert.match(call.hs_call_body, /Ring igen \(automatiskt\)/);
+  assert.match(call.hs_call_body, /Samtal 5 av 5 till Linda Hammar på Rusta\./);
+  assert.match(call.hs_call_body, /Inget svar/);
+  assert.doesNotMatch(call.hs_call_body, /981/);
+  assert.equal(call.hs_call_disposition, '73a0d17f-1163-4015-bdd5-ec830791da20');
   assert.equal(call.hs_call_status, 'NO_ANSWER');
 });
 
@@ -86,4 +90,20 @@ test('dealen får ägaren som eztablisher skickade mötet till', async () => {
   const p = rusta({ status: 'success', resultData: [{ label: 'Email sent to consultant', value: 'robin@indivd.com' }] });
   await syncLead(hs, p, new Map(), stats(), new Map());
   assert.equal(hs.made.find((m) => m.object === 'deals').properties.hubspot_owner_id, '78560277');
+});
+
+test('bokad återringning och bokat möte får rätt utfall och kontext', async () => {
+  const hs = fakeHs({ id: 'c1', properties: { adversus_lead_id: '7', adversus_contact_attempts: '4' } });
+  const p = rusta({ status: 'privateRedial', nextContactTime: '2099-01-02T08:00:00Z' });
+  await syncLead(hs, p, new Map(), stats(), new Map([['556280-2115', 'co1']]));
+  const call = hs.made.find((m) => m.object === 'calls').properties;
+  assert.match(call.hs_call_body, /Bokad återringning/);
+  assert.equal(call.hs_call_disposition, 'f240bbac-87c9-4f6e-bf70-924b57d47db7');
+
+  const hs2 = fakeHs({ id: 'c1', properties: { adversus_lead_id: '7', adversus_contact_attempts: '4' } });
+  const booked = rusta({ status: 'success', resultData: [{ label: 'Beskrivning', value: 'Vill se demo' }] });
+  await syncLead(hs2, booked, new Map(), stats(), new Map([['556280-2115', 'co1']]));
+  const c2 = hs2.made.find((m) => m.object === 'calls').properties;
+  assert.match(c2.hs_call_body, /Mötesanteckning:<\/i> Vill se demo/);
+  assert.equal(c2.hs_call_disposition, '2e7360c1-6b71-40e9-ab2b-30ae98a4678c');
 });
