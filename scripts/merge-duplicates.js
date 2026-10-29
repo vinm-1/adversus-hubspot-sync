@@ -23,6 +23,12 @@ const COMPANIES = [
   ['22324746345', '59717459587', 'Folkpool AB'],
   ['33005532588', '59708059778', 'Lundbergs handskar o väskor AB'],
   ['39847223653', '59698033791', 'Bilia'],
+  // Osäkra, godkända av Victor 2026-10-29. Vid flera kandidater väljs den äldsta.
+  ['25776040843', '59726249567', 'Dahl Sverige AB/AO GG Carat'],
+  ['43314014329', '59724547214', 'Gant AB'],
+  ['15626944024', '59727639329', 'Pandora'],
+  ['33233597321', '59696785497', 'Pilgrim A/S'],
+  ['17717361331', '59761810748', 'R A Motor Stockholm AB'],
 ];
 
 const dryRun = process.env.DRY_RUN !== 'false';
