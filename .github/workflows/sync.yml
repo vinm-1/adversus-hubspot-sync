@@ -31,6 +31,8 @@ jobs:
       # Indivds säljpipeline och steget nya deals hamnar i (samma som manuellt skapade möten).
       HUBSPOT_PIPELINE: ${{ vars.HUBSPOT_PIPELINE || '366860' }}
       HUBSPOT_DEAL_STAGE: ${{ vars.HUBSPOT_DEAL_STAGE || '1124130' }}
+      # Ägare när Adversus inte säger vem mötet skickades till: Victor Molén.
+      HUBSPOT_DEAL_OWNER_ID: ${{ vars.HUBSPOT_DEAL_OWNER_ID || '38780950' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
