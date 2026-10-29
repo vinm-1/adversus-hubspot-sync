@@ -28,3 +28,20 @@ DRY_RUN=true LIMIT=5 ADVERSUS_USER=… ADVERSUS_PASSWORD=… HUBSPOT_TOKEN=… n
 ## Kända osäkerheter
 - Sidindelningen i Adversus API (`page`/`pageSize`) är inte bekräftad mot deras dokumentation. Koden stoppar säkert, men kontrollera i första körningens logg att antalet leads stämmer.
 - Associationstyperna för Call och Deal är HubSpots standard-ID:n (194/182, 3/5).
+
+## Adversus i Claude (custom connector)
+`supabase/functions/adversus-mcp` är en koppling (remote MCP-server) som låter Claude läsa Adversus live:
+verktygen `sok_leads`, `hamta_lead` och `statistik`. Den är skrivskyddad och cachar svaren i 15 minuter, så att
+Adversus timgräns räcker även för synken.
+
+**Inloggning:** OAuth med PKCE. När du lägger till kopplingen i Claude öppnas en sida där du anger
+`CONNECTOR_PASSWORD`. Byter du lösenordet loggas alla befintliga anslutningar ut.
+
+**Installation (en gång):**
+1. Skapa ett Supabase-projekt (`indivd-integrations`, region Stockholm).
+2. GitHub → Settings → Secrets and variables → Actions:
+   - Secret `SUPABASE_ACCESS_TOKEN`: supabase.com → Account → Access Tokens
+   - Secret `CONNECTOR_PASSWORD`: ett långt lösenord du väljer
+   - Variable `SUPABASE_PROJECT_REF`: projektets Reference ID (Project Settings → General)
+3. Actions → *Deploya Adversus-kopplingen till Claude* → Run workflow.
+4. Claude → Settings → Connectors → Add custom connector → URL:en från körningens sammanfattning.

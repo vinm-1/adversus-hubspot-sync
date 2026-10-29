@@ -1,0 +1,50 @@
+name: Deploya Adversus-kopplingen till Claude
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**', '.github/workflows/deploy-mcp.yml']
+  workflow_dispatch:
+
+concurrency: deploy-mcp
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - name: Kontrollera att allt är inlagt
+        run: |
+          for v in SUPABASE_ACCESS_TOKEN PROJECT_REF; do
+            [ -n "${!v}" ] || { echo "::error::$v saknas i GitHub (Settings → Secrets and variables → Actions)"; exit 1; }
+          done
+          [ -n "${{ secrets.CONNECTOR_PASSWORD }}" ] || { echo "::error::Secret CONNECTOR_PASSWORD saknas"; exit 1; }
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Sätt hemligheter i Supabase
+        run: |
+          supabase secrets set --project-ref "$PROJECT_REF" \
+            ADVERSUS_USER="${{ secrets.ADVERSUS_USER }}" \
+            ADVERSUS_PASSWORD="${{ secrets.ADVERSUS_PASSWORD }}" \
+            CONNECTOR_PASSWORD="${{ secrets.CONNECTOR_PASSWORD }}" \
+            PUBLIC_URL="https://$PROJECT_REF.supabase.co/functions/v1/adversus-mcp"
+      - name: Deploya funktionen
+        # Supabase egen JWT-kontroll stängs av: funktionen har sin egen inloggning (OAuth + lösenord).
+        run: supabase functions deploy adversus-mcp --project-ref "$PROJECT_REF" --no-verify-jwt
+      - name: Snabbtest
+        run: |
+          URL="https://$PROJECT_REF.supabase.co/functions/v1/adversus-mcp"
+          curl -sf "$URL/.well-known/oauth-protected-resource" | tee /dev/stderr | grep -q authorization_servers
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL" -H 'content-type: application/json' -d '{}')
+          [ "$code" = "401" ] || { echo "::error::Förväntade 401 utan inloggning, fick $code"; exit 1; }
+          echo "Koppling till Claude: $URL"
+          echo "### Klart ✅  Lägg till i Claude: \`$URL\`" >> "$GITHUB_STEP_SUMMARY"
