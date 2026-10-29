@@ -193,6 +193,14 @@ export async function run({ dryRun = false, limit = Infinity, log = console.log 
     else kept.push(parseLead(lead));
   }
   const totals = companyAttempts(kept);
+  // Domän per bolag från alla dess kontakter: första kontakten saknar ibland e-post (så skapades "Lager157").
+  const domains = new Map();
+  for (const p of kept) {
+    const k = companyKey(p);
+    const d = companyDomain(p);
+    if (k && d && !domains.has(k)) domains.set(k, d);
+  }
+  for (const p of kept) if (!p.company.domain) p.company.domain = domains.get(companyKey(p)) ?? null;
 
   // LIMIT räknar bolag, så att en provkörning visar hela bolag med alla kontakter.
   // Provkörningen tar bolag med riktiga kontakter (e-post) först, så att provet visar något.

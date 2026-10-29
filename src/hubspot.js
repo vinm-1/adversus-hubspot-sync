@@ -47,7 +47,7 @@ export class HubSpot {
   }
 
   // organisation_number är text, organization_number är ett nummerfält (bara siffror).
-  findCompany({ orgnrVariants, name, names = [], domain }, properties) {
+  async findCompany({ orgnrVariants, name, names = [], domain }, properties) {
     const groups = [];
     if (orgnrVariants.length) {
       groups.push({ filters: [{ propertyName: 'organisation_number', operator: 'IN', values: orgnrVariants }] });
@@ -58,7 +58,18 @@ export class HubSpot {
     if (domain) groups.push({ filters: [{ propertyName: 'domain', operator: 'EQ', value: domain }] });
     const allNames = names.length ? names : name ? [name] : [];
     if (allNames.length) groups.push({ filters: [{ propertyName: 'name', operator: 'IN', values: allNames }] });
-    return groups.length ? this.searchOne('companies', groups, properties) : null;
+    const exact = groups.length ? await this.searchOne('companies', groups, properties) : null;
+    if (exact || !name) return exact;
+    // Reserv: sök på första ordet i namnet ("Shoeby" hittar "Shoeby B.V.", "Lager157" hittar "Lager 157").
+    // Används bara om det ger exakt en träff, annars hellre ett nytt bolag än fel bolag.
+    const word = name.replace(/\(.*?\)/g, '').split(/[\s,]+/).find((w) => w.length >= 4)?.replace(/\d+$/, '');
+    if (!word || word.length < 4) return null;
+    const res = await this.call('POST', '/crm/v3/objects/companies/search', {
+      filterGroups: [{ filters: [{ propertyName: 'name', operator: 'CONTAINS_TOKEN', value: `${word}*` }] }],
+      properties,
+      limit: 2,
+    });
+    return res.results?.length === 1 ? res.results[0] : null;
   }
 
   findContact({ leadId, email, phone }, properties) {
