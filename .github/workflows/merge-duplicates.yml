@@ -1,0 +1,23 @@
+name: Slå ihop dubbletter (engångsjobb)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Torrkörning (läser bara)'
+        type: boolean
+        default: true
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/merge-duplicates.js
