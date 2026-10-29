@@ -85,7 +85,19 @@ test('ingen ny deal om bolaget redan har en deal', async () => {
   assert.equal(s.dealsCreated, 0);
 });
 
-test('dealen får ägaren som eztablisher skickade mötet till', async () => {
+test('dealen får fast ägare när HUBSPOT_DEAL_OWNER_ID är satt', async () => {
+  process.env.HUBSPOT_DEAL_OWNER_ID = '38780950';
+  try {
+    const hs = fakeHs();
+    const p = rusta({ status: 'success', resultData: [{ label: 'Email sent to consultant', value: 'robin@indivd.com' }] });
+    await syncLead(hs, p, new Map(), stats(), new Map());
+    assert.equal(hs.made.find((m) => m.object === 'deals').properties.hubspot_owner_id, '38780950');
+  } finally {
+    delete process.env.HUBSPOT_DEAL_OWNER_ID;
+  }
+});
+
+test('utan fast ägare får dealen den som eztablisher skickade mötet till', async () => {
   const hs = fakeHs();
   const p = rusta({ status: 'success', resultData: [{ label: 'Email sent to consultant', value: 'robin@indivd.com' }] });
   await syncLead(hs, p, new Map(), stats(), new Map());

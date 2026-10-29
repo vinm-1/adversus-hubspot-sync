@@ -27,8 +27,10 @@ const orgnrProps = (orgnr) => ({
   organization_number: orgnr ? orgnr.replace('-', '') : null,
 });
 
+// Ägare för nya deals: HUBSPOT_DEAL_OWNER_ID (Victor) om den är satt. Annars den som
+// eztablisher skickade mötet till enligt Adversus.
 async function ownerProp(hs, email) {
-  const id = (await hs.ownerIdByEmail?.(email)) ?? process.env.HUBSPOT_DEAL_OWNER_ID;
+  const id = process.env.HUBSPOT_DEAL_OWNER_ID || (await hs.ownerIdByEmail?.(email));
   return id ? { hubspot_owner_id: String(id) } : {};
 }
 
