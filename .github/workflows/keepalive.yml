@@ -1,0 +1,35 @@
+name: Håll Supabase vaket
+
+# Supabase pausar gratisprojekt efter ungefär en veckas inaktivitet. Ett anrop om dagen mot
+# projektets API och mot Claude-kopplingen räknas som aktivitet, så att kopplingen alltid svarar.
+on:
+  schedule:
+    - cron: '17 6 * * *' # varje dag ca 07/08 svensk tid
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_NAME: indivd-integrations
+    steps:
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Anropa projektet
+        run: |
+          ref=$(supabase projects list -o json | jq -r --arg n "$PROJECT_NAME" '.[] | select(.name==$n) | .id' | head -1)
+          [ -n "$ref" ] || { echo "::error::Hittar inte Supabase-projektet $PROJECT_NAME"; exit 1; }
+          status=$(supabase projects list -o json | jq -r --arg r "$ref" '.[] | select(.id==$r) | .status')
+          echo "Projektstatus: $status"
+          if [ "$status" != "ACTIVE_HEALTHY" ]; then
+            echo "::error::Supabase-projektet är inte igång ($status). Öppna https://supabase.com/dashboard/project/$ref och klicka Restore."
+            exit 1
+          fi
+          anon=$(supabase projects api-keys --project-ref "$ref" -o json | jq -r '.[] | select(.name=="anon") | .api_key' | head -1)
+          echo "::add-mask::$anon"
+          # Databasens API (räknas som aktivitet av Supabase) och Claude-kopplingen.
+          curl -sf -o /dev/null -w "REST API: %{http_code}\n" "https://$ref.supabase.co/rest/v1/" -H "apikey: $anon" -H "Authorization: Bearer $anon" || true
+          curl -sf -o /dev/null -w "Claude-kopplingen: %{http_code}\n" "https://$ref.supabase.co/functions/v1/adversus-mcp/.well-known/oauth-protected-resource"

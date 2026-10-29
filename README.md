@@ -44,3 +44,6 @@ Adversus timgräns räcker även för synken.
 2. Workflowet hittar Supabase-projektet `indivd-integrations`, eller skapar det i Stockholm om det saknas.
 3. Actions → *Deploya Adversus-kopplingen till Claude* → Run workflow.
 4. Claude → Settings → Connectors → Add custom connector → URL:en från körningens sammanfattning.
+
+**Håll vaket:** `keepalive.yml` anropar Supabase-projektet en gång om dagen, så att gratisprojektet inte pausas.
+Är projektet ändå pausat misslyckas jobbet, och GitHub mejlar dig med en länk för att starta det igen.
