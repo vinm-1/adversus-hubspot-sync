@@ -14,6 +14,10 @@ jobs:
     timeout-minutes: 20
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # Hemligheter skickas som miljövariabler, aldrig inklistrade i skripten (tecken som " bryter annars skriptet).
+      CONNECTOR_PASSWORD: ${{ secrets.CONNECTOR_PASSWORD }}
+      ADVERSUS_USER: ${{ secrets.ADVERSUS_USER }}
+      ADVERSUS_PASSWORD: ${{ secrets.ADVERSUS_PASSWORD }}
       PROJECT_NAME: indivd-integrations
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +28,7 @@ jobs:
       - name: Kontrollera att allt är inlagt
         run: |
           [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Secret SUPABASE_ACCESS_TOKEN saknas i GitHub"; exit 1; }
-          [ -n "${{ secrets.CONNECTOR_PASSWORD }}" ] || { echo "::error::Secret CONNECTOR_PASSWORD saknas i GitHub"; exit 1; }
+          [ -n "$CONNECTOR_PASSWORD" ] || { echo "::error::Secret CONNECTOR_PASSWORD saknas i GitHub"; exit 1; }
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -51,10 +55,10 @@ jobs:
       - name: Sätt hemligheter i Supabase
         run: |
           supabase secrets set --project-ref "$PROJECT_REF" \
-            ADVERSUS_USER="${{ secrets.ADVERSUS_USER }}" \
-            ADVERSUS_PASSWORD="${{ secrets.ADVERSUS_PASSWORD }}" \
-            CONNECTOR_PASSWORD="${{ secrets.CONNECTOR_PASSWORD }}" \
-            PUBLIC_URL="https://$PROJECT_REF.supabase.co/functions/v1/adversus-mcp"
+            "ADVERSUS_USER=$ADVERSUS_USER" \
+            "ADVERSUS_PASSWORD=$ADVERSUS_PASSWORD" \
+            "CONNECTOR_PASSWORD=$CONNECTOR_PASSWORD" \
+            "PUBLIC_URL=https://$PROJECT_REF.supabase.co/functions/v1/adversus-mcp"
       - name: Deploya funktionen
         # Supabase egen JWT-kontroll stängs av: funktionen har sin egen inloggning (OAuth + lösenord).
         run: supabase functions deploy adversus-mcp --project-ref "$PROJECT_REF" --no-verify-jwt
