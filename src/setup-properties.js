@@ -16,7 +16,10 @@ const PROPS = {
     time('adversus_last_contacted', 'Adversus: senast ringd'),
     time('adversus_next_contact', 'Adversus: nästa samtal'),
   ],
-  companies: [num('adversus_contact_attempts', 'Adversus: antal samtal (alla kontakter)')],
+  companies: [
+    num('adversus_contact_attempts', 'Adversus: antal samtal (alla kontakter)'),
+    time('adversus_created_at', 'Adversus: skapad av synken'),
+  ],
   deals: [text('adversus_lead_id', 'Adversus: lead-ID')],
 };
 

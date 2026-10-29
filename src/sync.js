@@ -67,6 +67,8 @@ export async function syncLead(hs, p, companyTotals, stats, companyCache) {
             domain: companyDomain(p),
             ...orgnrProps(p.company.orgnr),
             adversus_contact_attempts: total,
+            // Märker bolag som synken skapat, så att eventuella dubbletter är lätta att hitta och slå ihop.
+            adversus_created_at: new Date().toISOString(),
           }).filter(([, v]) => v != null),
         ),
       );

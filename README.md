@@ -3,7 +3,7 @@
 Synkar eztablishers prospektering i Adversus till Indivds HubSpot, en gång i timmen på vardagar.
 
 ## Vad som synkas
-- **Bolag**: matchas på org.nr (`organization_number` eller `organisation_number`), annars skapas de. Fältet *Adversus: antal samtal (alla kontakter)* visar summan av samtal på bolaget.
+- **Bolag**: nya bolag märks med *Adversus: skapad av synken* (datum). Matchas på org.nr (`organization_number` eller `organisation_number`), annars skapas de. Fältet *Adversus: antal samtal (alla kontakter)* visar summan av samtal på bolaget.
 - **Kontakter**: matchas på Adversus lead-ID, e-post eller mobilnummer. Adversus fyller **bara i tomma fält**. Fälten *Adversus: …* (antal samtal, status, senaste utfall, senast ringd, nästa samtal) uppdateras alltid.
 - **Samtal**: ett HubSpot-*Call* per nytt samtal sedan förra körningen, kopplat till kontakt och bolag. Första synken loggar inga gamla samtal, eftersom Adversus inte ger datum per samtal, bara totalen.
 - **Bokade möten** (status `success`): en deal med eztablishers mötesanteckning. Skapas en gång per lead.
