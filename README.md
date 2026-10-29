@@ -34,8 +34,8 @@ DRY_RUN=true LIMIT=5 ADVERSUS_USER=… ADVERSUS_PASSWORD=… HUBSPOT_TOKEN=… n
 verktygen `sok_leads`, `hamta_lead` och `statistik`. Den är skrivskyddad och cachar svaren i 15 minuter, så att
 Adversus timgräns räcker även för synken.
 
-**Inloggning:** OAuth med PKCE. När du lägger till kopplingen i Claude öppnas en sida där du anger
-`CONNECTOR_PASSWORD`. Byter du lösenordet loggas alla befintliga anslutningar ut.
+**Inloggning:** OAuth med PKCE. När du lägger till kopplingen i Claude frågar webbläsaren efter
+`CONNECTOR_PASSWORD` i webbläsarens inloggningsruta (användarnamn spelar ingen roll). Byter du lösenordet loggas alla befintliga anslutningar ut.
 
 **Installation (en gång):**
 1. GitHub → Settings → Secrets and variables → Actions → Secrets:

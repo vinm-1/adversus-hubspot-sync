@@ -59,27 +59,32 @@ const authServerMeta = () => ({
   scopes_supported: ['adversus.read'],
 });
 
-const loginPage = (q: URLSearchParams, error = '') => `<!doctype html><html lang="sv"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Adversus för Claude</title>
-<style>body{font-family:system-ui,sans-serif;max-width:360px;margin:15vh auto;padding:0 16px}
-input,button{width:100%;padding:12px;margin-top:8px;font-size:16px;box-sizing:border-box}button{cursor:pointer}
-.err{color:#b00020}</style></head><body><h2>Koppla Adversus till Claude</h2>
-<p>Ange lösenordet för kopplingen.</p>${error ? `<p class="err">${error}</p>` : ''}
-<form method="post">${[...q].map(([k, v]) => `<input type="hidden" name="${k}" value="${v.replace(/"/g, '&quot;')}">`).join('')}
-<input type="password" name="password" placeholder="Lösenord" autofocus required><button>Logga in</button></form></body></html>`;
+// Supabase visar inte HTML från Edge Functions (sidor skickas som text/plain). Därför används
+// webbläsarens egen inloggningsruta (HTTP Basic) i stället för ett formulär. Användarnamn spelar ingen roll.
+function passwordFromBasic(req: Request) {
+  const h = req.headers.get('authorization') ?? '';
+  if (!/^Basic\s+/i.test(h)) return null;
+  try {
+    const decoded = new TextDecoder().decode(Uint8Array.from(atob(h.replace(/^Basic\s+/i, '')), (c) => c.charCodeAt(0)));
+    return decoded.slice(decoded.indexOf(':') + 1);
+  } catch {
+    return null;
+  }
+}
 
 async function authorize(req: Request, url: URL) {
-  const q = req.method === 'POST' ? new URLSearchParams(await req.text()) : url.searchParams;
+  const q = url.searchParams;
   const redirect = q.get('redirect_uri') ?? '';
-  if (!ALLOWED_REDIRECTS.includes(redirect)) return new Response('Otillåten redirect_uri', { status: 400 });
+  if (!ALLOWED_REDIRECTS.includes(redirect)) return new Response('Otillaten redirect_uri', { status: 400 });
   if (q.get('response_type') !== 'code' || q.get('code_challenge_method') !== 'S256' || !q.get('code_challenge')) {
-    return new Response('Kräver response_type=code och PKCE (S256)', { status: 400 });
+    return new Response('Kraver response_type=code och PKCE (S256)', { status: 400 });
   }
-  const html = (body: string, status = 200) => new Response(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
-  if (req.method === 'GET') return html(loginPage(q));
-  if (!PASSWORD || !safeEqual(q.get('password') ?? '', PASSWORD)) {
-    q.delete('password');
-    return html(loginPage(q, 'Fel lösenord.'), 401);
+  const password = passwordFromBasic(req);
+  if (!password || !safeEqual(password, PASSWORD)) {
+    return new Response('Ange losenordet for Adversus-kopplingen (anvandarnamn spelar ingen roll).', {
+      status: 401,
+      headers: { 'WWW-Authenticate': 'Basic realm="Adversus for Claude", charset="UTF-8"', 'Content-Type': 'text/plain; charset=utf-8' },
+    });
   }
   const code = await signToken(
     { typ: 'code', ch: q.get('code_challenge'), ru: redirect, cid: q.get('client_id') },
@@ -89,7 +94,7 @@ async function authorize(req: Request, url: URL) {
   const back = new URL(redirect);
   back.searchParams.set('code', code);
   if (q.get('state')) back.searchParams.set('state', q.get('state')!);
-  return Response.redirect(back.toString(), 302);
+  return new Response(null, { status: 302, headers: { Location: back.toString(), 'Cache-Control': 'no-store' } });
 }
 
 async function token(req: Request) {
@@ -134,7 +139,7 @@ Deno.serve(async (req) => {
     const meta = await req.json().catch(() => ({}));
     return json({ ...meta, client_id: crypto.randomUUID(), token_endpoint_auth_method: 'none' }, 201);
   }
-  if (path === '/authorize') return authorize(req, url);
+  if (path === '/authorize' && req.method === 'GET') return authorize(req, url);
   if (path === '/token' && req.method === 'POST') return token(req);
 
   if (path === '/' && req.method === 'POST') {
