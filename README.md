@@ -38,10 +38,9 @@ Adversus timgräns räcker även för synken.
 `CONNECTOR_PASSWORD`. Byter du lösenordet loggas alla befintliga anslutningar ut.
 
 **Installation (en gång):**
-1. Skapa ett Supabase-projekt (`indivd-integrations`, region Stockholm).
-2. GitHub → Settings → Secrets and variables → Actions:
-   - Secret `SUPABASE_ACCESS_TOKEN`: supabase.com → Account → Access Tokens
-   - Secret `CONNECTOR_PASSWORD`: ett långt lösenord du väljer
-   - Variable `SUPABASE_PROJECT_REF`: projektets Reference ID (Project Settings → General)
+1. GitHub → Settings → Secrets and variables → Actions → Secrets:
+   - `SUPABASE_ACCESS_TOKEN`: supabase.com → Account → Access Tokens
+   - `CONNECTOR_PASSWORD`: ett långt lösenord du väljer
+2. Workflowet hittar Supabase-projektet `indivd-integrations`, eller skapar det i Stockholm om det saknas.
 3. Actions → *Deploya Adversus-kopplingen till Claude* → Run workflow.
 4. Claude → Settings → Connectors → Add custom connector → URL:en från körningens sammanfattning.

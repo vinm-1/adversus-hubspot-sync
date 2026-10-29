@@ -11,10 +11,10 @@ concurrency: deploy-mcp
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+      PROJECT_NAME: indivd-integrations
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,13 +23,31 @@ jobs:
       - run: npm test
       - name: Kontrollera att allt är inlagt
         run: |
-          for v in SUPABASE_ACCESS_TOKEN PROJECT_REF; do
-            [ -n "${!v}" ] || { echo "::error::$v saknas i GitHub (Settings → Secrets and variables → Actions)"; exit 1; }
-          done
-          [ -n "${{ secrets.CONNECTOR_PASSWORD }}" ] || { echo "::error::Secret CONNECTOR_PASSWORD saknas"; exit 1; }
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || { echo "::error::Secret SUPABASE_ACCESS_TOKEN saknas i GitHub"; exit 1; }
+          [ -n "${{ secrets.CONNECTOR_PASSWORD }}" ] || { echo "::error::Secret CONNECTOR_PASSWORD saknas i GitHub"; exit 1; }
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Hitta eller skapa Supabase-projektet
+        run: |
+          ref=$(supabase projects list -o json | jq -r --arg n "$PROJECT_NAME" '.[] | select(.name==$n) | .id' | head -1)
+          if [ -z "$ref" ]; then
+            org=$(supabase orgs list -o json | jq -r '.[0].id')
+            echo "Skapar $PROJECT_NAME i Stockholm (org $org)"
+            # Databaslösenordet används inte av kopplingen; det kan återställas i Supabase vid behov.
+            supabase projects create "$PROJECT_NAME" --org-id "$org" --region eu-north-1 \
+              --db-password "$(openssl rand -base64 32 | tr -d '/+=')" -o json > /tmp/p.json
+            ref=$(jq -r '.id' /tmp/p.json)
+            echo "Väntar på att projektet startar…"
+            for i in $(seq 1 40); do
+              status=$(supabase projects list -o json | jq -r --arg r "$ref" '.[] | select(.id==$r) | .status')
+              [ "$status" = "ACTIVE_HEALTHY" ] && break
+              sleep 15
+            done
+          fi
+          [ -n "$ref" ] && [ "$ref" != "null" ] || { echo "::error::Kunde inte hitta eller skapa projektet"; exit 1; }
+          echo "PROJECT_REF=$ref" >> "$GITHUB_ENV"
+          echo "Supabase-projekt: $ref"
       - name: Sätt hemligheter i Supabase
         run: |
           supabase secrets set --project-ref "$PROJECT_REF" \
